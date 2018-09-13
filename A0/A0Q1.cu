@@ -1,3 +1,6 @@
+/*
+ *To find sum of two large arrays
+ */
 #include <stdio.h>
 
 const long long ARRAY_SIZE = 320000; 
