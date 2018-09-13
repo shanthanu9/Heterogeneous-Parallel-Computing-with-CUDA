@@ -1,3 +1,6 @@
+/*
+ *To find sum of two large arrays
+ */
 #include <stdio.h>
 
 const long long ARRAY_SIZE = 320000; 
@@ -16,6 +19,7 @@ int checkSum(float *h_a, float *h_b, float *h_sum) {
     for(int i = 0; i < ARRAY_SIZE; i++) {
     	if(h_sum[i] != h_a[i] + h_b[i]) {
     		flag = 0;
+            break;
     	}
     }
 
