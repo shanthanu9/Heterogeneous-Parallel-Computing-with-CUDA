@@ -1,5 +1,5 @@
 # Thrust Transform
-Implemention of vector addition using Thrust. 
+Implementation of vector addition using Thrust. 
 
 >Thrust is a Standard Template Library for CUDA that contains a collection of data parallel primitives 
 (eg. vectors) and implementations (eg. Sort, Scan, saxpy) that can be used in writing high performance 
