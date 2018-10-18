@@ -55,18 +55,15 @@ int main(int argc, char *argv[]) {
 	hostOutput = new float[inputLength];
 
 	// Declare and allocate thrust device input and output vectors and copy to device
-	//@@ Insert Code here
-	thrust::host_vector<float> h_input1(hostInput1, hostInput1+inputLength), h_input2(hostInput2, hostInput2+inputLength);
-	thrust::device_vector<float> d_input1 = h_input1, d_input2 = h_input2, d_output;
+	thrust::device_vector<float> d_input1(hostInput1, hostInput1+inputLength);
+	thrust::device_vector<float> d_input2(hostInput2, hostInput2+inputLength);
+	thrust::device_vector<float> d_output(inputLength);
 	// Execute vector addition
-	//@@ Insert Code here
 	thrust::transform(d_input1.begin(), d_input1.end(), d_input2.begin(), d_output.begin(), thrust::plus<float>());
 	/////////////////////////////////////////////////////////
 
 	// Copy data back to host
-	//@@ Insert Code here
-	thrust::host_vector<float> h_output = d_output;
-	thrust::copy(h_output.begin(), h_output.end(), hostOutput);
+	thrust::copy(d_output.begin(), d_output.end(), hostOutput);
 
 	testSolution(hostInput1, hostInput2, hostOutput, inputLength, 1e-6);
 
