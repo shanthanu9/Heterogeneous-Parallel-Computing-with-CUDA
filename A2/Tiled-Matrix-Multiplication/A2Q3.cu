@@ -58,13 +58,11 @@ bool test_solution(int *h_out, int *h_in1, int *h_in2) {
 			for(int k = 0; k < N; k++) {
 				sum += (h_in1[i*N+k] * h_in2[k*N+j]);
 			}
-			//printf("%d ", sum);
 			if(sum != h_out[i*N+j]) {
 				flag = false;
 				break;
 			}	
 		}
-		//printf("\n");
 	}
 	if(flag) return true;
 	return false;
@@ -111,14 +109,6 @@ int main() {
 
 	cudaMemcpy(h_out, d_out, N * N * sizeof(int), cudaMemcpyDeviceToHost);
 
-	/*
-	for(int i = 0; i < N; i++) {
-		for(int j = 0; j < N; j++) {
-			printf("%d ", h_out[i*N+j]);
-		}
-		printf("\n");
-	}
-	*/
 	clock_t cpu_startTime, cpu_endTime;
 	double cpu_ElapseTime=0;
 	cpu_startTime = clock();
