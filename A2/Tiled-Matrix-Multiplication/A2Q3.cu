@@ -3,7 +3,7 @@
 #define BLOCK_SIZE 32
 #define CEIL(a, b) ((a-1)/b +1)
 #define TILE 32
-const int N = 800;
+const int N = 10000;
 
 __global__ void matrix_multiplicaton(int *d_out, int *d_in1, int *d_in2) {
 	__shared__ int in_tile1[TILE][TILE], in_tile2[TILE][TILE];
@@ -71,11 +71,15 @@ bool test_solution(int *h_out, int *h_in1, int *h_in2) {
 int main() {
 	srand(time(0));
 
-	int h_in1[N * N], h_in2[N * N], h_out[N * N];
+	int * h_in1, * h_in2, * h_out;
+
+	h_in1 = (int *)malloc(N*N*sizeof(int));
+        h_in2 = (int *)malloc(N*N*sizeof(int));
+ 	h_out = (int *)malloc(N*N*sizeof(int));
 
 	for(int i = 0; i < N * N; i++) {
         h_in1[i] = rand()%1000;
-    }
+        }
 
 
 	for(int i = 0; i < N * N; i++) {
