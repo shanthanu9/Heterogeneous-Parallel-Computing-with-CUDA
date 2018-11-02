@@ -1,4 +1,4 @@
-# Convolution
+# Image Convolution
 
 Implementation of tiled image convolution using both shared and constant memory. A constant
 5x5 convolution mask is used.
