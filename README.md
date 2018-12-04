@@ -19,3 +19,4 @@ Each folder contains a README.md which contains description of programs.
   - Histogram for ASCII characters and numbers
   - Histogram sort using thrust
   - Image convolution
+  - Shared memory tiling by implementing 7-point Stencil

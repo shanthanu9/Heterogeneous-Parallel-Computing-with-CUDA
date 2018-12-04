@@ -7,8 +7,7 @@ using namespace std;
 #define value(arry, i, j, k) (arry[((i)*width + (j)) * depth + (k)])
 #define output(i, j, k) value(output, i, j, k)
 #define input(i, j, k) value(input, i, j, k)
-#define data(i, j, k) data[i*121 + j*11 + k]
-#define BLOCK_SIZE 32
+
 
 #define wbCheck(stmt)                                                           \
     do {                                                                        \
@@ -20,26 +19,107 @@ using namespace std;
         }                                                                       \
     } while (0)
 
+__global__ void compute_stencil(float *deviceOutputData, float *deviceInputData, int width, int height, int depth) {
 
-__global__ void launch_stencil(float *deviceOutputData, float *deviceInputData, 
-    int width, int height, int depth) {
+	#define in(i, j, k) value(deviceInputData, i, j, k)
+	#define out(i, j, k) value(deviceOutputData, i, j, k)
 
-    #define in(i,j,k) value(deviceInputData, i, j, k)
-    #define out(i,j,k) value(deviceOutputData, i, j, k)
+	int i = blockDim.x * blockIdx.x + threadIdx.x;
+	int j = blockDim.y * blockIdx.y + threadIdx.y;
+	int k = blockDim.z * blockIdx.z + threadIdx.z;
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
+	__shared__ float data[11][11][11];
 
-    if(j > 0 && j < width - 1 && i > 0 && i < height - 1)
-        for(int k = 1; k < depth-1; k++) {
-            float res = in(i, j, k + 1) + in(i, j, k - 1) + in(i, j + 1, k) +
-                    in(i, j - 1, k) + in(i + 1, j, k) + in(i - 1, j, k) - 6 * in(i, j, k);
-            res = Clamp(res, 0.0, 255.0);
-            out(i, j, k) = res;
-        }
+	int x = threadIdx.x; 	//corresponds to i
+	int y = threadIdx.y;	//corresponds to j
+	int z = threadIdx.z;	//corresponds to k
+
+	if(i<height && j<width && k<depth) {
+        data[x+1][y+1][z+1] = in(i,j,k);
+    }
+
+    __syncthreads();
+
+    if(i>0 && x == 0) {
+        data[x][y+1][z+1] = in(i-1,j,k);
+    }
+
+    if(i<height-1 && x == 8) {
+        data[x+2][y+1][z+1] = in(i+1,j,k);
+    }
+
+    if(j>0 && y == 0) {
+        data[x+1][y][z+1] = in(i,j-1,k);
+    }
+
+    if(j<width-1 && y == 8) {
+        data[x+1][y+2][z+1] = in(i,j+1,k);
+    }
+
+    if(k>0 && z == 0) {
+        data[x+1][y+1][z] = in(i,j,k-1);
+    }
+
+    if(k<depth-1 && z == 8) {
+        data[x+1][y+1][z+2] = in(i,j,k+1);
+    }
+
+    __syncthreads();
+
+    if(i > 0 && i < height-1 && j > 0 && j < width-1 && k > 0 && k < depth-1) {
+
+        x++;y++;z++;
+
+		float res = data[x-1][y][z] + data[x+1][y][z] + data[x][y-1][z] +
+                    data[x][y+1][z] + data[x][y][z-1] + data[x][y][z+1] -
+                    6*data[x][y][z];
+		
+		/*if(x == 0)
+			res += in(i-1,j,k);
+		else 
+			res += data[x-1][y][z];
+
+		if(y == 0)
+			res += in(i,j-1,k);
+		else 
+			res += data[x][y-1][z];
+		
+		if(z == 0)
+			res += in(i,j,k-1);
+		else 
+			res += data[x][y][z-1];
+
+		if(x == 8)
+			res += in(i+1,j,k);
+		else 
+			res += data[x+1][y][z];
+
+		if(y == 8)
+			res += in(i,j+1,k);
+		else 
+			res += data[x][y+1][z];
+
+		if(z == 8)
+			res += in(i,j,k+1);
+		else 
+			res += data[x][y][z+1];*/
+
+		out(i,j,k) = Clamp(res, 0.0, 255.0);
+
+	}
 
     #undef in
     #undef out
+
+}
+
+static void launch_stencil(float *deviceOutputData, float *deviceInputData, 
+    int width, int height, int depth) {
+
+    dim3 grid(CEIL(height, 9), CEIL(width, 9), CEIL(depth, 9));
+    dim3 block(9, 9, 9);
+
+    compute_stencil<<<grid, block>>>(deviceOutputData, deviceInputData, width, height, depth);
 }
 
 int main(int argc, char *argv[]) {
@@ -79,12 +159,7 @@ int main(int argc, char *argv[]) {
     wbTime_stop(Copy, "Copying data to the GPU");
 
     wbTime_start(Compute, "Doing the computation on the GPU");
-
-    dim3 grid(CEIL(height, BLOCK_SIZE), CEIL(width, BLOCK_SIZE), 1);
-    dim3 block(BLOCK_SIZE, BLOCK_SIZE, 1);
-
-    launch_stencil<<<grid, block>>>(deviceOutputData, deviceInputData, width, height, depth);
-
+    launch_stencil(deviceOutputData, deviceInputData, width, height, depth);
     wbTime_stop(Compute, "Doing the computation on the GPU");
 
     wbTime_start(Copy, "Copying data from the GPU");
@@ -92,7 +167,38 @@ int main(int argc, char *argv[]) {
         cudaMemcpyDeviceToHost);
     wbTime_stop(Copy, "Copying data from the GPU");
 
-    wbSolution(arg, output);
+    //check computation in GPU
+
+    bool flag = true;
+
+    #define in(i,j,k) value(hostInputData, i, j, k)
+
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            for (int k = 0; k < depth; ++k) {
+                float res;
+
+                if(i == 0 || i == height-1 || j == 0 || j == width-1 || k == 0 || k == depth - 1)
+                    res = 0;
+                else
+                    res = in(i, j, k + 1) + in(i, j, k - 1) + in(i, j + 1, k) +
+                    in(i, j - 1, k) + in(i + 1, j, k) + in(i - 1, j, k) - 6 * in(i, j, k);
+                
+                res = Clamp(res, 0.0, 255.0);
+
+                //tolerance similar to mentioned in wb.h
+                if(fabs(res - output.data[((i)*width + (j)) * depth + (k)]) > 0.005882354) {
+                    flag = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(flag) 
+        cout<<"Solution is correct!\n";
+    else 
+        cout<<"Solution is incorrect!\n";
 
     cudaFree(deviceInputData);
     cudaFree(deviceOutputData);

@@ -58,7 +58,7 @@ static void create_dataset(int datasetNum, int width, int height, int depth) {
 	unsigned char *output_data = (unsigned char *)
 		calloc(sizeof(unsigned char), width * height * depth);
 
-	// compute(output_data, input_data, width, height, depth);
+	compute(output_data, input_data, width, height, depth);
 
 	write_data(input_file_name, input_data, width, height, depth);
 	write_data(output_file_name, output_data, width, height, depth);
