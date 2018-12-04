@@ -73,36 +73,6 @@ __global__ void compute_stencil(float *deviceOutputData, float *deviceInputData,
 		float res = data[x-1][y][z] + data[x+1][y][z] + data[x][y-1][z] +
                     data[x][y+1][z] + data[x][y][z-1] + data[x][y][z+1] -
                     6*data[x][y][z];
-		
-		/*if(x == 0)
-			res += in(i-1,j,k);
-		else 
-			res += data[x-1][y][z];
-
-		if(y == 0)
-			res += in(i,j-1,k);
-		else 
-			res += data[x][y-1][z];
-		
-		if(z == 0)
-			res += in(i,j,k-1);
-		else 
-			res += data[x][y][z-1];
-
-		if(x == 8)
-			res += in(i+1,j,k);
-		else 
-			res += data[x+1][y][z];
-
-		if(y == 8)
-			res += in(i,j+1,k);
-		else 
-			res += data[x][y+1][z];
-
-		if(z == 8)
-			res += in(i,j,k+1);
-		else 
-			res += data[x][y][z+1];*/
 
 		out(i,j,k) = Clamp(res, 0.0, 255.0);
 
