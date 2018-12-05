@@ -74,7 +74,7 @@ __global__ void compute_stencil(float *deviceOutputData, float *deviceInputData,
                     data[x][y+1][z] + data[x][y][z-1] + data[x][y][z+1] -
                     6*data[x][y][z];
 
-		out(i,j,k) = Clamp(res, 0.0, 255.0);
+		out(i,j,k) = Clamp(res, 0.0, 1.0);
 
 	}
 
@@ -136,39 +136,8 @@ int main(int argc, char *argv[]) {
     cudaMemcpy(output.data, deviceOutputData, width * height * depth * sizeof(float),
         cudaMemcpyDeviceToHost);
     wbTime_stop(Copy, "Copying data from the GPU");
-
-    //check computation in GPU
-
-    bool flag = true;
-
-    #define in(i,j,k) value(hostInputData, i, j, k)
-
-    for (int i = 0; i < height; ++i) {
-        for (int j = 0; j < width; ++j) {
-            for (int k = 0; k < depth; ++k) {
-                float res;
-
-                if(i == 0 || i == height-1 || j == 0 || j == width-1 || k == 0 || k == depth - 1)
-                    res = 0;
-                else
-                    res = in(i, j, k + 1) + in(i, j, k - 1) + in(i, j + 1, k) +
-                    in(i, j - 1, k) + in(i + 1, j, k) + in(i - 1, j, k) - 6 * in(i, j, k);
-                
-                res = Clamp(res, 0.0, 255.0);
-
-                //tolerance similar to mentioned in wb.h
-                if(fabs(res - output.data[((i)*width + (j)) * depth + (k)]) > 0.005882354) {
-                    flag = false;
-                    break;
-                }
-            }
-        }
-    }
-
-    if(flag) 
-        cout<<"Solution is correct!\n";
-    else 
-        cout<<"Solution is incorrect!\n";
+    
+    wbSolution(arg, output);
 
     cudaFree(deviceInputData);
     cudaFree(deviceOutputData);

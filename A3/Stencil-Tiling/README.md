@@ -18,6 +18,6 @@ Execution:
 [Copy   ] 0.006686976 Copying data to the GPU
 [Compute] 0.004561152 Doing the computation on the GPU
 [Copy   ] 0.028345856 Copying data from the GPU
-Solution is correct!
+Solution is correct.
 ```
 
