@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
 	std::chrono::steady_clock::time_point end= std::chrono::steady_clock::now();
 
-	cout<<"Time taken for serial BFS: "<<(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count())<<"ms";
+	cout<<"Time taken for serial BFS: "<<(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count())<<"ms\n";
 
 	freopen(argv[2], "w", stdout);
 
