@@ -9,7 +9,7 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-	if(argc < 2) {
+	if(argc < 3) {
 		cout<<"Expecting a file as command line arguement...";
 		return 0;
 	}
@@ -42,13 +42,15 @@ int main(int argc, char *argv[]) {
 	}
 
 	queue<int> q;
-	int *depth = (int*)malloc(n*sizeof(int));
-	for(int i = 0; i < n; i++) depth[i] = 1e9;
+	int *d = (int*)malloc(n*sizeof(int));
+	for(int i = 0; i < n; i++) d[i] = 1e9;
 	bool *vis = (bool*)malloc(n*sizeof(bool));
 	for(int i = 0; i < n; i++) vis[i] = false;
 	q.push(0);
 	vis[0] = true;
-	depth[0] = 0;
+	d[0] = 0;
+
+	int depth = 0;
 
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -59,19 +61,24 @@ int main(int argc, char *argv[]) {
 			if(!vis[u]) {
 				vis[u] = true;
 				q.push(u);
-				depth[u] = depth[v]+1;
+				d[u] = d[v]+1;
+				if(d[u] > depth) {
+					depth = d[u];
+				}
 			}
 		}
 	}
 
+	cout<<"The depth of the given graph from node 0 is "<<depth<<endl;
+
 	std::chrono::steady_clock::time_point end= std::chrono::steady_clock::now();
 
-	cout<<"Time taken for serial BFS: "<<(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count())<<"ms\n";
+	cout<<"Time taken for serial BFS: "<<(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count())/1000<<"ms\n";
 
 	freopen(argv[2], "w", stdout);
 
 	for(int i = 0; i < n; i++) {
-		cout<<depth[i]<<endl;
+		cout<<d[i]<<endl;
 	}
 
 	return 0;

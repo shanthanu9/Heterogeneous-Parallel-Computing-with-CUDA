@@ -5,50 +5,57 @@ using namespace std;
 #define BLOCK_SIZE 1024
 #define CEIL(a, b) ((a-1)/b +1)
 
-__global__ void vertex_parallel_bfs(int *depth, int *R, int *C, int n) {
+__global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *Q0, int *Q1) {
 
 	int id = threadIdx.x;
 
 	for(int i = id; i < n; i+=blockDim.x) {
-		depth[i] = 1e9;
+		d[i] = 1e9;
 	}
 
-	__shared__ int current_depth;
-	__shared__ int done;
+	__shared__ int Q0_len, Q1_len;
 
 	if(id == 0) {
-		depth[id] = 0;
-		current_depth = 0;
-		done = false;
-	}
-
+		d[id] = 0;
+		Q0[id] = 0;
+		Q0_len = 1;
+		Q1_len = 0;
+	}	
+	
 	__syncthreads();
 
-	while(!done) {
-		if(id == 0)
-			done = true;
-		
-		__syncthreads();
-
-		for(int v = id; v < n; v+=blockDim.x) {
-			
-			if(depth[v] == current_depth) {
-
-				done = false;
-				for(int j = R[v]; j < R[v+1]; j++) {	
-					int u = C[j];
-					if(depth[u] > depth[v]+1) {
-						depth[u] = depth[v]+1;
-					}
+	while(1) {
+		for(int i = id; i < Q0_len; i+=blockDim.x) {
+			int v = Q0[i];
+			for(int j = R[v]; j < R[v+1]; j++) {
+				int u = C[j];
+				if(atomicCAS(&d[u], int(1e9), d[v]+1) == int(1e9)) {
+					int t = atomicAdd(&Q1_len, 1);
+					Q1[t] = u;
 				}
 			}
 		}
 
-		if(id == 0)
-			current_depth++;
+		__syncthreads();
+
+		if(Q1_len == 0) {
+			break;
+		}
+		else {
+			for(int i = id; i < Q1_len; i+=blockDim.x) {
+				Q0[i] = Q1[i];
+			}
+		}
 
 		__syncthreads();
-	}
+
+		if(id == 0) {
+			Q0_len = Q1_len;
+			Q1_len = 0;
+		}
+
+		__syncthreads();
+ 	}
 }
 
 int main(int argc, char *argv[]) {
@@ -74,11 +81,13 @@ int main(int argc, char *argv[]) {
 		cin>>h_C[i];
 	} 
 
-	int *d_R, *d_C, *d_depth;
+	int *d_R, *d_C, *d_d, *Q0, *Q1;
 
 	cudaMalloc((void**) &d_R, (n+1)*sizeof(int));
 	cudaMalloc((void**) &d_C, h_R[n]*sizeof(int));
-	cudaMalloc((void**) &d_depth, n*sizeof(int));
+	cudaMalloc((void**) &d_d, n*sizeof(int));
+	cudaMalloc((void**) &Q0, n*sizeof(int));
+	cudaMalloc((void**) &Q1, n*sizeof(int));
 
 	cudaMemcpy(d_R, h_R, (n+1)*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_C, h_C, h_R[n]*sizeof(int), cudaMemcpyHostToDevice);
@@ -89,7 +98,7 @@ int main(int argc, char *argv[]) {
 
 	cudaEventRecord(start);
 
-	vertex_parallel_bfs<<<1, BLOCK_SIZE>>>(d_depth, d_R, d_C, n);
+	work_efficient_parallel_bfs<<<1, BLOCK_SIZE>>>(d_d, d_R, d_C, n, Q0, Q1);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -98,34 +107,38 @@ int main(int argc, char *argv[]) {
 
 	cout<<"Compute time in GPU: "<<milliseconds<<"ms"<<endl;
 
-	int *h_depth = (int*) malloc(n*sizeof(int));
+	int *h_d = (int*) malloc(n*sizeof(int));
 
-	cudaMemcpy(h_depth, d_depth, n*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_d, d_d, n*sizeof(int), cudaMemcpyDeviceToHost);
 
-	int *h_check_depth = (int*)malloc(n*sizeof(int));
+	int *h_check_d = (int*)malloc(n*sizeof(int));
 
 	freopen(argv[2], "r", stdin);
 
 	for(int i = 0; i < n; i++) {
-		cin>>h_check_depth[i];
+		cin>>h_check_d[i];
 	}
 
 	bool flag = true;
 	int count = 0;
+	const int errcount = 20;
 
 	for(int i = 0; i < n; i++) {
-		if(h_depth[i] != h_check_depth[i]) {
+		if(h_d[i] != h_check_d[i]) {
 			flag = false;
+			if(count < errcount) {
+				cout<<i<<" : "<<h_d[i]<<" "<<h_check_d[i]<<endl; 
+			}
 			count++;
 		}
 	}
 
 	if(flag) {
-		cout<<"Solution is correct!\n";
+		cout<<"Solution is correct!"<<endl;
 	}
 	else {
 		cout<<"Solution is incorrect!"<<endl;
-		cout<<count<<" testcases failed.\n";
+		cout<<count<<" testcases failed."<<endl;
 	}
 
 	return 0;
