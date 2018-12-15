@@ -5,7 +5,7 @@ using namespace std;
 #define BLOCK_SIZE 1024
 #define CEIL(a, b) ((a-1)/b +1)
 
-__global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *Q0, int *Q1) {
+__global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *Q0, int *Q1, int *depth) {
 
 	int id = threadIdx.x;
 
@@ -13,13 +13,14 @@ __global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *
 		d[i] = 1e9;
 	}
 
-	__shared__ int Q0_len, Q1_len;
+	__shared__ int Q0_len, Q1_len, current_depth;
 
 	if(id == 0) {
 		d[id] = 0;
 		Q0[id] = 0;
 		Q0_len = 1;
 		Q1_len = 0;
+		current_depth = 0;
 	}	
 	
 	__syncthreads();
@@ -52,11 +53,16 @@ __global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *
 		if(id == 0) {
 			Q0_len = Q1_len;
 			Q1_len = 0;
+			current_depth++;
 		}
 
 		__syncthreads();
  	}
+
+ 	if(id == 0)
+ 		*depth = current_depth;
 }
+
 
 int main(int argc, char *argv[]) {
 	if(argc < 3) {
@@ -81,13 +87,14 @@ int main(int argc, char *argv[]) {
 		cin>>h_C[i];
 	} 
 
-	int *d_R, *d_C, *d_d, *Q0, *Q1;
+	int *d_R, *d_C, *d_d, *Q0, *Q1, *d_depth;
 
 	cudaMalloc((void**) &d_R, (n+1)*sizeof(int));
 	cudaMalloc((void**) &d_C, h_R[n]*sizeof(int));
 	cudaMalloc((void**) &d_d, n*sizeof(int));
 	cudaMalloc((void**) &Q0, n*sizeof(int));
 	cudaMalloc((void**) &Q1, n*sizeof(int));
+	cudaMalloc((void**) &d_depth, sizeof(int));
 
 	cudaMemcpy(d_R, h_R, (n+1)*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_C, h_C, h_R[n]*sizeof(int), cudaMemcpyHostToDevice);
@@ -98,7 +105,7 @@ int main(int argc, char *argv[]) {
 
 	cudaEventRecord(start);
 
-	work_efficient_parallel_bfs<<<1, BLOCK_SIZE>>>(d_d, d_R, d_C, n, Q0, Q1);
+	work_efficient_parallel_bfs<<<1, BLOCK_SIZE>>>(d_d, d_R, d_C, n, Q0, Q1, d_depth);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -108,8 +115,10 @@ int main(int argc, char *argv[]) {
 	cout<<"Compute time in GPU: "<<milliseconds<<"ms"<<endl;
 
 	int *h_d = (int*) malloc(n*sizeof(int));
+	int *h_depth = (int*) malloc(sizeof(int));
 
 	cudaMemcpy(h_d, d_d, n*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_depth, d_depth, sizeof(int), cudaMemcpyDeviceToHost);
 
 	int *h_check_d = (int*)malloc(n*sizeof(int));
 
@@ -135,6 +144,7 @@ int main(int argc, char *argv[]) {
 
 	if(flag) {
 		cout<<"Solution is correct!"<<endl;
+		cout<<"The depth of the given graph from node 0 is "<<(*h_depth)<<endl;
 	}
 	else {
 		cout<<"Solution is incorrect!"<<endl;

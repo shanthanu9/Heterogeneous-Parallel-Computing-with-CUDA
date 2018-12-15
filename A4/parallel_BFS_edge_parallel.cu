@@ -6,12 +6,12 @@ using namespace std;
 #define INF 1e9
 #define CEIL(a, b) ((a-1)/b +1)
 
-__global__ void edge_parallel_bfs(int *depth, int *F, int *C, int n, int m) {
+__global__ void edge_parallel_bfs(int *d, int *F, int *C, int n, int m, int *depth) {
 
 	int id = threadIdx.x;
 	
 	for(int i = id; i < n; i+=blockDim.x) {
-		depth[i] = INF;
+		d[i] = INF;
 	}
 
 	__shared__ int current_depth;
@@ -20,7 +20,7 @@ __global__ void edge_parallel_bfs(int *depth, int *F, int *C, int n, int m) {
 	if(id == 0) {
 		current_depth = 0;
 		done = false;
-		depth[0] = 0;
+		d[0] = 0;
 	}
 
 	__syncthreads();
@@ -34,12 +34,12 @@ __global__ void edge_parallel_bfs(int *depth, int *F, int *C, int n, int m) {
 
 		for(int i = id; i < 2*m; i += blockDim.x) {
 
-			if(depth[F[i]] == current_depth) {
+			if(d[F[i]] == current_depth) {
 				done = false;
 				int v = F[i];
 				int u = C[i];
-				if(depth[u] > depth[v] + 1) {
-					depth[u] = depth[v]+1;
+				if(d[u] > d[v] + 1) {
+					d[u] = d[v]+1;
 				}
 			}
 		}
@@ -50,7 +50,11 @@ __global__ void edge_parallel_bfs(int *depth, int *F, int *C, int n, int m) {
 
 		__syncthreads();
 	}
+
+	if(id == 0)
+		*depth = current_depth;
 }
+
 
 int main(int argc, char *argv[]) {
 	if(argc < 3) {
@@ -83,11 +87,12 @@ int main(int argc, char *argv[]) {
 		cin>>h_C[i];
 	} 
 
-	int *d_F, *d_C, *d_depth;
+	int *d_F, *d_C, *d_d, *d_depth;
 
 	cudaMalloc((void**) &d_F, 2*m*sizeof(int));
 	cudaMalloc((void**) &d_C, 2*m*sizeof(int));
-	cudaMalloc((void**) &d_depth, n*sizeof(int));
+	cudaMalloc((void**) &d_d, n*sizeof(int));
+	cudaMalloc((void**) &d_depth, sizeof(int));
 
 	cudaMemcpy(d_F, h_F, 2*m*sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_C, h_C, 2*m*sizeof(int), cudaMemcpyHostToDevice);
@@ -98,7 +103,7 @@ int main(int argc, char *argv[]) {
 
 	cudaEventRecord(start);
 
-	edge_parallel_bfs<<<1, BLOCK_SIZE>>>(d_depth, d_F, d_C, n, m);
+	edge_parallel_bfs<<<1, BLOCK_SIZE>>>(d_d, d_F, d_C, n, m, d_depth);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -107,16 +112,18 @@ int main(int argc, char *argv[]) {
 
 	cout<<"Compute time in GPU: "<<milliseconds<<"ms"<<endl;
 
-	int *h_depth = (int*) malloc(n*sizeof(int));
+	int *h_d = (int*) malloc(n*sizeof(int));
+	int *h_depth = (int*) malloc(sizeof(int));
 
-	cudaMemcpy(h_depth, d_depth, n*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_d, d_d, n*sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_depth, d_depth, sizeof(int), cudaMemcpyDeviceToHost);
 
-	int *h_check_depth = (int*)malloc(n*sizeof(int));
+	int *h_check_d = (int*)malloc(n*sizeof(int));
 
 	freopen(argv[2], "r", stdin);
 
 	for(int i = 0; i < n; i++) {
-		cin>>h_check_depth[i];
+		cin>>h_check_d[i];
 	}
 
 	bool flag = true;
@@ -124,10 +131,10 @@ int main(int argc, char *argv[]) {
 	const int errcount = 20;
 
 	for(int i = 0; i < n; i++) {
-		if(h_depth[i] != h_check_depth[i]) {
+		if(h_d[i] != h_check_d[i]) {
 			flag = false;
 			if(count < errcount) {
-				cout<<i<<" : "<<h_depth[i]<<" "<<h_check_depth[i]<<endl; 
+				cout<<i<<" : "<<h_d[i]<<" "<<h_check_d[i]<<endl; 
 			}
 			count++;
 		}
@@ -135,6 +142,7 @@ int main(int argc, char *argv[]) {
 
 	if(flag) {
 		cout<<"Solution is correct!"<<endl;
+		cout<<"The depth of the given graph from node 0 is "<<(*h_depth)<<endl;
 	}
 	else {
 		cout<<"Solution is incorrect!"<<endl;
