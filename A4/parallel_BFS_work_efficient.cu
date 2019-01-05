@@ -25,7 +25,7 @@ __global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *
 	
 	__syncthreads();
 
-	while(1) {
+	while(Q0_len) {
 		for(int i = id; i < Q0_len; i+=blockDim.x) {
 			int v = Q0[i];
 			for(int j = R[v]; j < R[v+1]; j++) {
@@ -39,13 +39,8 @@ __global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *
 
 		__syncthreads();
 
-		if(Q1_len == 0) {
-			break;
-		}
-		else {
-			for(int i = id; i < Q1_len; i+=blockDim.x) {
-				Q0[i] = Q1[i];
-			}
+		for(int i = id; i < Q1_len; i+=blockDim.x) {
+			Q0[i] = Q1[i];
 		}
 
 		__syncthreads();
@@ -60,7 +55,7 @@ __global__ void work_efficient_parallel_bfs(int *d, int *R, int *C, int n, int *
  	}
 
  	if(id == 0)
- 		*depth = current_depth;
+ 		*depth = current_depth -1;
 }
 
 

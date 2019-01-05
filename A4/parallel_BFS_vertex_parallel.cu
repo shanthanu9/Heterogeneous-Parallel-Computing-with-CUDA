@@ -34,17 +34,17 @@ __global__ void vertex_parallel_bfs(int *d, int *R, int *C, int n, int *depth) {
 			
 			if(d[v] == current_depth) {
 
-				done = false;
 				for(int j = R[v]; j < R[v+1]; j++) {	
 					int u = C[j];
 					if(d[u] == int(1e9)) {
-						d[u] = d[v]+1;
+						done = false;
+						d[u] = current_depth+1;
 					}
 				}
 			}
 		}
 
-		if(id == 0)
+		if(id == 0 && done == 0)
 			current_depth++;
 
 		__syncthreads();

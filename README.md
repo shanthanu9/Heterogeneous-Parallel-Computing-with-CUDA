@@ -20,3 +20,8 @@ Each folder contains a README.md which contains description of programs.
   - Histogram sort using thrust
   - Image convolution
   - Shared memory tiling by implementing 7-point Stencil
+- A4
+  - Parallel BFS
+    - Vertex parallel mathod
+    - Edge Parallel method
+    - Work efficient method

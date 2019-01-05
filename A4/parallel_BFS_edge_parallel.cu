@@ -35,16 +35,16 @@ __global__ void edge_parallel_bfs(int *d, int *F, int *C, int n, int m, int *dep
 		for(int i = id; i < 2*m; i += blockDim.x) {
 
 			if(d[F[i]] == current_depth) {
-				done = false;
-				int v = F[i];
+				//int v = F[i];
 				int u = C[i];
-				if(d[u] > d[v] + 1) {
-					d[u] = d[v]+1;
+				if(d[u] == (int)1e9) {
+					done = false;
+					d[u] = current_depth+1;
 				}
 			}
 		}
 
-		if(id == 0) {
+		if(id == 0 && done == 0) {
 			current_depth++;
 		}
 
